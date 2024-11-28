@@ -8,6 +8,18 @@ main = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='Создать роз
                            resize_keyboard=True,
                            input_field_placeholder='Выберите пунк меню...')
 
+# from app.handlers import lotteries as g
+from app.handlers import lotteries_router
+dp = Dispatcher(bot, storage=MemoryStorage())
+dp.include_router(lotteries_router)
+
+def create_lottery_keyboard(lotteries):  # lotteries is now an argument
+    """Creates an inline keyboard with buttons for each lottery."""
+    keyboard = []
+    for lottery in lotteries:
+        keyboard.append([InlineKeyboardButton(text=lottery['name'], callback_data=f"lottery_{lottery['id']}")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 
 count = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='1', callback_data='1'),
@@ -15,9 +27,9 @@ count = InlineKeyboardMarkup(inline_keyboard=[
      InlineKeyboardButton(text='3', callback_data='3')]])
 
 
-myRG = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Розыгрыш', callback_data='RGname')]])
+myRG = create_lottery_keyboard(lotteries_router)
 
 
 SRG = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Завершить', callback_data='finish')]])
+    [InlineKeyboardButton(text='Завершить', callback_data='finish')],
+    [InlineKeyboardButton(text='Удалить', callback_data='delete')]])

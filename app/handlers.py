@@ -5,11 +5,13 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 import re
 from datetime import datetime
+from aiogram.types import (ReplyKeyboardMarkup, KeyboardButton,
+                            InlineKeyboardMarkup, InlineKeyboardButton)
 
 import app.keyboards as kb
 
 router = Router()
-
+lotteries = {}
 
 class Register(StatesGroup):
     name = State()
@@ -39,7 +41,7 @@ async def create(message: Message, state: FSMContext):
 async def register_name(message: Message, state: FSMContext):
     await state.update_data(name=message.text)
     await state.set_state(Register.text)
-    await message.answer('Введите текст в котором вы опишите условия розыгрыша,\n дату окончяния и кол-во победителей.')
+    await message.answer('Введите текст в котором вы опишите условия розыгрыша,\nдату окончяния и кол-во победителей.')
 
 
 @router.message(Register.text)
@@ -53,13 +55,13 @@ async def register_text(message: Message, state: FSMContext):
 async def register_1(callback: CallbackQuery, state: FSMContext):
     await state.update_data(count=1)
     await state.set_state(Register.data)
-    await callback.message.answer('Введите Дату окончания розыгрыша.')
+    await callback.message.answer('Введите Дату окончания розыгрыша в формате YYYY-MM-DD.')
 
 @router.callback_query(Register.count, F.data == '2')
 async def register_2(callback: CallbackQuery, state: FSMContext):
     await state.update_data(count=2)
     await state.set_state(Register.data)
-    await callback.message.answer('Введите Дату окончания розыгрыша.')
+    await callback.message.answer('Введите Дату окончания розыгрыша в формате YYYY-MM-DD.')
 
 @router.callback_query(Register.count, F.data == '3')
 async def register_3(callback: CallbackQuery, state: FSMContext):
@@ -68,9 +70,10 @@ async def register_3(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer('Введите дату окончания розыгрыша в формате YYYY-MM-DD.')
 
 
-@router.message(Register.data, F.text)
+@lotteries_router.message(Register.data, F.text)
 async def register_data(message: Message, state: FSMContext):
     date_string = message.text
+    user_id = message.from_user.id
     try:
         if not re.match(r'\d{4}-\d{2}-\d{2}', date_string):
             raise ValueError("Неверный формат даты. Используйте формат YYYY-MM-DD")
@@ -78,7 +81,22 @@ async def register_data(message: Message, state: FSMContext):
         date_object = datetime.strptime(date_string, '%Y-%m-%d')
         await state.update_data(date=date_object)
         data = await state.get_data()
+
+        lottery_data = {
+            'name': data['name'],
+            'text': data['text'],
+            'count': data['count'],
+            'date': date_object.strftime('%Y-%m-%d')
+        }
+
+        if user_id not in lotteries:
+            lotteries[user_id] = []
+        lotteries[user_id].append(lottery_data)
+
         await message.answer(f"Розыгрыш создан:\nНазвание: {data['name']}\nТекст: {data['text']}\nПобедителей: {data['count']}\nДата окончания: {date_object.strftime('%Y-%m-%d')}\nВыберите канал для публикации в разделе 'Мои розыгрыши'.")
+
+        await message.answer(str(lotteries[user_id])) # Correctly print the list
+
         await state.clear()
     except ValueError as e:
         await message.answer(f"Ошибка: {e}. Пожалуйста, введите корректную дату в формате YYYY-MM-DD.")
@@ -99,3 +117,4 @@ async def catalog(message: Message):
 async def RGname(callback: CallbackQuery):
     await callback.answer('Вы выбрали', show_alert=True)
     await callback.message.answer('Вы выбрали', reply_markup=kb.SRG)
+
